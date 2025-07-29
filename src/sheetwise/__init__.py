@@ -17,7 +17,17 @@ from .data_types import CellInfo, TableRegion
 from .encoders import VanillaEncoder
 from .utils import create_realistic_spreadsheet
 
-__version__ = "1.0.0"
+try:
+    from importlib.metadata import version
+    __version__ = version("sheetwise")
+except ImportError:
+    # Fallback for Python < 3.8
+    from importlib_metadata import version
+    __version__ = version("sheetwise")
+except Exception:
+    # Fallback if package not installed
+    __version__ = "1.1.0"
+
 __author__ = "Based on Microsoft Research SpreadsheetLLM"
 
 __all__ = [
