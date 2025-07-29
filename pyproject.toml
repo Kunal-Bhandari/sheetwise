@@ -2,12 +2,12 @@
 name = "sheetwise"
 version = "1.0.0"
 description = "A Python package for encoding spreadsheets for Large Language Models, implementing the SpreadsheetLLM research framework"
-authors = ["Khushiyant Chauhan <your.email@example.com>"]
+authors = ["Khushiyant Chauhan <khushiyant@example.com>"]
 readme = "README.md"
 license = "MIT"
-homepage = "https://github.com/yourusername/sheetwise"
-repository = "https://github.com/yourusername/sheetwise"
-documentation = "https://sheetwise.readthedocs.io"
+homepage = "https://github.com/Khushiyant/sheetwise"
+repository = "https://github.com/Khushiyant/sheetwise"
+documentation = "https://khushiyant.github.io/sheetwise"
 keywords = ["spreadsheet", "llm", "encoding", "compression", "data-processing"]
 classifiers = [
     "Development Status :: 4 - Beta",
