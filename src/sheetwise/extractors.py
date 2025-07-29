@@ -192,9 +192,60 @@ class InvertedIndexTranslator:
 
     def _merge_address_ranges(self, addresses: List[str]) -> List[str]:
         """Attempt to merge contiguous cell addresses into ranges"""
-        # Simple implementation - return original addresses
-        # Advanced implementation would detect ranges like A1:A5
-        return addresses
+        if len(addresses) <= 1:
+            return addresses
+            
+        # Parse addresses and sort them
+        parsed = []
+        for addr in addresses:
+            col_match = ""
+            row_match = ""
+            i = 0
+            while i < len(addr) and addr[i].isalpha():
+                col_match += addr[i]
+                i += 1
+            row_match = addr[i:]
+            
+            # Convert column letters to numbers
+            col_num = 0
+            for char in col_match:
+                col_num = col_num * 26 + (ord(char) - ord('A') + 1)
+            
+            parsed.append((col_num, int(row_match), addr))
+        
+        parsed.sort()
+        
+        # Group contiguous addresses
+        ranges = []
+        current_range = [parsed[0]]
+        
+        for i in range(1, len(parsed)):
+            prev_col, prev_row, _ = current_range[-1]
+            curr_col, curr_row, _ = parsed[i]
+            
+            # Check if addresses are contiguous
+            if (curr_col == prev_col and curr_row == prev_row + 1) or \
+               (curr_row == prev_row and curr_col == prev_col + 1):
+                current_range.append(parsed[i])
+            else:
+                # Process current range
+                if len(current_range) >= 3:  # Only create ranges for 3+ cells
+                    start_addr = current_range[0][2]
+                    end_addr = current_range[-1][2]
+                    ranges.append(f"{start_addr}:{end_addr}")
+                else:
+                    ranges.extend([cell[2] for cell in current_range])
+                current_range = [parsed[i]]
+        
+        # Process final range
+        if len(current_range) >= 3:
+            start_addr = current_range[0][2]
+            end_addr = current_range[-1][2]
+            ranges.append(f"{start_addr}:{end_addr}")
+        else:
+            ranges.extend([cell[2] for cell in current_range])
+        
+        return ranges
 
 
 class DataFormatAggregator:
@@ -237,5 +288,60 @@ class DataFormatAggregator:
 
     def _group_contiguous_cells(self, cells: List[Dict]) -> List[Dict]:
         """Group contiguous cells with same data type"""
-        # Simplified implementation
-        return cells
+        if len(cells) <= 1:
+            return cells
+            
+        # Sort cells by position
+        cells.sort(key=lambda x: (x['row'], x['col']))
+        
+        groups = []
+        current_group = [cells[0]]
+        
+        for i in range(1, len(cells)):
+            prev_cell = current_group[-1]
+            curr_cell = cells[i]
+            
+            # Check if cells are adjacent (same row, next column OR same column, next row)
+            is_adjacent = (
+                (prev_cell['row'] == curr_cell['row'] and 
+                 curr_cell['col'] == prev_cell['col'] + 1) or
+                (prev_cell['col'] == curr_cell['col'] and 
+                 curr_cell['row'] == prev_cell['row'] + 1)
+            )
+            
+            if is_adjacent:
+                current_group.append(curr_cell)
+            else:
+                # Finalize current group
+                if len(current_group) >= 3:
+                    # Create range representation
+                    start_addr = current_group[0]['address']
+                    end_addr = current_group[-1]['address']
+                    groups.append({
+                        'type': 'range',
+                        'start': start_addr,
+                        'end': end_addr,
+                        'count': len(current_group),
+                        'sample_value': current_group[0]['value']
+                    })
+                else:
+                    # Keep individual cells
+                    groups.extend(current_group)
+                
+                current_group = [curr_cell]
+        
+        # Handle final group
+        if len(current_group) >= 3:
+            start_addr = current_group[0]['address']
+            end_addr = current_group[-1]['address']
+            groups.append({
+                'type': 'range',
+                'start': start_addr,
+                'end': end_addr,
+                'count': len(current_group),
+                'sample_value': current_group[0]['value']
+            })
+        else:
+            groups.extend(current_group)
+        
+        return groups

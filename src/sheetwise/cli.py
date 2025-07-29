@@ -36,30 +36,82 @@ def main():
     parser.add_argument("--stats", action="store_true", help="Show encoding statistics")
 
     parser.add_argument("--demo", action="store_true", help="Run demo with sample data")
+    
+    parser.add_argument("--auto-config", action="store_true", 
+                       help="Automatically configure compression parameters")
+    
+    parser.add_argument("--format", choices=['text', 'json'], default='text',
+                       help="Output format (text or json)")
+    
+    parser.add_argument("--verbose", "-v", action="store_true",
+                       help="Enable verbose logging")
 
     args = parser.parse_args()
 
     # Handle demo mode
     if args.demo:
         from .utils import create_realistic_spreadsheet
+        import json
 
         print("Running SpreadsheetLLM demo...")
         df = create_realistic_spreadsheet()
-        sllm = SpreadsheetLLM()
+        sllm = SpreadsheetLLM(enable_logging=args.verbose)
 
         print(f"Created demo spreadsheet: {df.shape}")
-        stats = sllm.get_encoding_stats(df)
+        
+        # Choose encoding method based on options
+        if args.vanilla:
+            print("Using vanilla encoding...")
+            encoded = sllm.encode_vanilla(df)
+            encoding_type = "vanilla"
+        elif args.auto_config:
+            print("Using auto-configuration...")
+            encoded = sllm.compress_with_auto_config(df)
+            encoding_type = "auto-compressed"
+        else:
+            encoded = sllm.compress_and_encode_for_llm(df)
+            encoding_type = "compressed"
+        
+        if args.stats:
+            stats = sllm.get_encoding_stats(df)
+            print(f"\nEncoding Statistics ({encoding_type}):")
+            for key, value in stats.items():
+                if isinstance(value, float):
+                    print(f"  {key}: {value:.2f}")
+                else:
+                    print(f"  {key}: {value}")
 
-        print("\nEncoding Statistics:")
-        for key, value in stats.items():
-            if isinstance(value, float):
-                print(f"  {key}: {value:.2f}")
-            else:
-                print(f"  {key}: {value}")
-
-        encoded = sllm.compress_and_encode_for_llm(df)
-        print(f"\nLLM-ready output ({len(encoded)} characters):")
-        print(encoded[:500] + "..." if len(encoded) > 500 else encoded)
+        # Handle output format
+        if args.format == "json":
+            # Convert numpy types to native Python types for JSON serialization
+            json_stats = {}
+            if args.stats:
+                for key, value in stats.items():
+                    if hasattr(value, 'item'):  # numpy scalar
+                        json_stats[key] = value.item()
+                    elif isinstance(value, tuple):  # shape tuple
+                        json_stats[key] = list(value)
+                    else:
+                        json_stats[key] = value
+            
+            output_data = {
+                "encoding_type": encoding_type,
+                "data_shape": list(df.shape),  # Convert to list for JSON
+                "output_length": len(encoded),
+                "content": encoded
+            }
+            
+            if args.stats:
+                output_data["statistics"] = json_stats
+            
+            formatted_output = json.dumps(output_data, indent=2)
+            print(f"\nJSON Output:")
+            print(formatted_output)
+        else:
+            # Text format (default)
+            print(f"\nLLM-ready output ({encoding_type}, {len(encoded)} characters):")
+            print(encoded[:500] + "..." if len(encoded) > 500 else encoded)
+        
         return
 
     # Validate input file is provided when not in demo mode

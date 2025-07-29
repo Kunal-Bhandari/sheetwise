@@ -1,6 +1,7 @@
 """Main SpreadsheetLLM class integrating all components."""
 
-from typing import Any, Dict
+from typing import Any, Dict, Optional, Union
+import logging
 
 import pandas as pd
 
@@ -14,17 +15,91 @@ class SpreadsheetLLM:
     Main class integrating all SpreadsheetLLM components
     """
 
-    def __init__(self, compression_params: Dict[str, Any] = None):
+    def __init__(self, compression_params: Dict[str, Any] = None, enable_logging: bool = False):
         """
         Initialize SpreadsheetLLM framework
 
         Args:
             compression_params: Parameters for SheetCompressor
+            enable_logging: Enable detailed logging for debugging
         """
         params = compression_params or {}
         self.compressor = SheetCompressor(**params)
         self.vanilla_encoder = VanillaEncoder()
         self.chain_processor = ChainOfSpreadsheet(self.compressor)
+        
+        # Setup logging if requested
+        if enable_logging:
+            self._setup_logging()
+
+    def _setup_logging(self):
+        """Setup logging for operations"""
+        self.logger = logging.getLogger('sheetwise')
+        if not self.logger.handlers:
+            handler = logging.StreamHandler()
+            formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            handler.setFormatter(formatter)
+            self.logger.addHandler(handler)
+            self.logger.setLevel(logging.INFO)
+
+    def auto_configure(self, df: pd.DataFrame) -> Dict[str, Any]:
+        """
+        Auto-configure compression parameters based on spreadsheet characteristics
+        
+        Args:
+            df: Input DataFrame to analyze
+            
+        Returns:
+            Optimized compression parameters
+        """
+        total_cells = df.shape[0] * df.shape[1]
+        non_empty = self._count_non_empty_cells(df)
+        sparsity = 1 - (non_empty / total_cells) if total_cells > 0 else 0
+        
+        # Auto-tune parameters
+        config = {}
+        
+        # Adjust k based on sparsity
+        if sparsity > 0.9:  # Very sparse
+            config['k'] = 2
+        elif sparsity > 0.7:  # Moderately sparse  
+            config['k'] = 3
+        else:  # Dense data
+            config['k'] = 5
+            
+        # Disable aggregation for very sparse data
+        if sparsity > 0.95:
+            config['use_aggregation'] = False
+            
+        # Always use extraction and translation for sparse data
+        if sparsity > 0.5:
+            config['use_extraction'] = True
+            config['use_translation'] = True
+        
+        if hasattr(self, 'logger'):
+            self.logger.info(f"Auto-configured for {sparsity:.1%} sparsity: {config}")
+            
+        return config
+
+    def compress_with_auto_config(self, df: pd.DataFrame) -> str:
+        """
+        Automatically configure and compress spreadsheet
+        
+        Args:
+            df: Input DataFrame
+            
+        Returns:
+            LLM-ready text with optimal compression
+        """
+        # Get optimal configuration
+        auto_config = self.auto_configure(df)
+        
+        # Create new compressor with optimal settings
+        optimal_compressor = SheetCompressor(**auto_config)
+        
+        # Compress and encode
+        compressed = optimal_compressor.compress(df)
+        return self.encode_compressed_for_llm(compressed)
 
     def load_from_file(self, filepath: str) -> pd.DataFrame:
         """Load spreadsheet from file"""
@@ -80,6 +155,81 @@ class SpreadsheetLLM:
                 if len(cells) > 5:  # Only show significant type groups
                     lines.append(f"{data_type}: {len(cells)} cells")
 
+        return "\n".join(lines)
+
+    def encode_for_llm_provider(self, compressed_result: Dict[str, Any], provider: str = "general") -> str:
+        """
+        Generate LLM-specific optimized formats
+        
+        Args:
+            compressed_result: Output from compress_spreadsheet()
+            provider: Target LLM provider ("chatgpt", "claude", "gemini", "general")
+            
+        Returns:
+            Provider-optimized text representation
+        """
+        if provider.lower() == "chatgpt":
+            return self._encode_for_chatgpt(compressed_result)
+        elif provider.lower() == "claude":
+            return self._encode_for_claude(compressed_result)
+        elif provider.lower() == "gemini":
+            return self._encode_for_gemini(compressed_result)
+        else:
+            return self.encode_compressed_for_llm(compressed_result)
+    
+    def _encode_for_chatgpt(self, compressed_result: Dict[str, Any]) -> str:
+        """ChatGPT-optimized format"""
+        lines = []
+        lines.append("# Spreadsheet Data")
+        lines.append(f"Compressed {compressed_result['compression_ratio']:.1f}x from original size")
+        lines.append("")
+        
+        if "inverted_index" in compressed_result:
+            lines.append("## Key-Value Mappings:")
+            for value, addresses in list(compressed_result["inverted_index"].items())[:20]:
+                addr_str = ", ".join(addresses[:5])
+                if len(addresses) > 5:
+                    addr_str += f" (+{len(addresses)-5} more)"
+                lines.append(f"'{value}' → {addr_str}")
+        
+        return "\n".join(lines)
+    
+    def _encode_for_claude(self, compressed_result: Dict[str, Any]) -> str:
+        """Claude-optimized format with structured markdown"""
+        lines = []
+        lines.append("# Spreadsheet Analysis Data")
+        lines.append("")
+        
+        # Claude handles structured data well
+        lines.append("## Summary")
+        original_shape = compressed_result.get("original_shape", (0, 0))
+        lines.append(f"- Original: {original_shape[0]} rows × {original_shape[1]} columns")
+        lines.append(f"- Compression: {compressed_result.get('compression_ratio', 1):.1f}x reduction")
+        lines.append("")
+        
+        if "inverted_index" in compressed_result:
+            lines.append("## Value Locations")
+            for value, addresses in list(compressed_result["inverted_index"].items())[:15]:
+                lines.append(f"**{value}**: {', '.join(addresses)}")
+        
+        return "\n".join(lines)
+    
+    def _encode_for_gemini(self, compressed_result: Dict[str, Any]) -> str:
+        """Gemini-optimized format with tables"""
+        lines = []
+        lines.append("# Spreadsheet Data")
+        lines.append("")
+        
+        if "inverted_index" in compressed_result:
+            lines.append("| Value | Cell Locations |")
+            lines.append("|-------|----------------|")
+            
+            for value, addresses in list(compressed_result["inverted_index"].items())[:10]:
+                addr_str = ", ".join(addresses[:3])
+                if len(addresses) > 3:
+                    addr_str += f" (+{len(addresses)-3})"
+                lines.append(f"| {value} | {addr_str} |")
+        
         return "\n".join(lines)
 
     def compress_and_encode_for_llm(self, df: pd.DataFrame) -> str:

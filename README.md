@@ -18,10 +18,13 @@ SheetWise is a Python package that implements the key components from Microsoft 
 ## Key Features
 
 - **Intelligent Compression**: Up to 96% reduction in token usage while preserving semantic information
+- **Auto-Configuration**:  Automatically optimizes compression settings based on spreadsheet characteristics  
+- **Multi-LLM Support**:  Provider-specific formats for ChatGPT, Claude, Gemini
 - **Multi-Table Support**: Handles complex spreadsheets with multiple tables and regions
 - **Structural Analysis**: Identifies and preserves important structural elements
 - **LLM-Ready Output**: Generates optimized text for direct use with ChatGPT, Claude, etc.
 - **Format-Aware**: Preserves data type and formatting information
+- **Enhanced Algorithms**:  Improved range detection and contiguous cell grouping
 - **Easy Integration**: Simple API for immediate use
 
 ## Installation
@@ -72,7 +75,17 @@ print(llm_ready_text)
 ```python
 from sheetwise import SpreadsheetLLM, SheetCompressor
 
-# Using SheetCompressor directly
+# Auto-configuration (NEW!)
+sllm = SpreadsheetLLM(enable_logging=True)
+auto_compressed = sllm.compress_with_auto_config(df)  # Automatically optimizes settings
+
+# LLM Provider-specific formats (NEW!)
+compressed = sllm.compress_spreadsheet(df)
+chatgpt_format = sllm.encode_for_llm_provider(compressed, "chatgpt")
+claude_format = sllm.encode_for_llm_provider(compressed, "claude")
+gemini_format = sllm.encode_for_llm_provider(compressed, "gemini")
+
+# Manual configuration
 compressor = SheetCompressor(
     k=2,  # Structural anchor neighborhood size
     use_extraction=True,
@@ -107,11 +120,26 @@ result = sllm.process_qa_query(df, "What was the total revenue in 2023?")
 # Compress a spreadsheet file
 sheetwise input.xlsx -o output.txt --stats
 
+# Auto-configure compression (NEW!)
+sheetwise input.xlsx --auto-config --verbose
+
 # Run demo with sample data
-sheetwise --demo
+sheetwise --demo --auto-config
+
+# Run demo with vanilla encoding
+sheetwise --demo --vanilla --stats
+
+# Run demo with JSON output format
+sheetwise --demo --format json
+
+# Run demo with auto-config and JSON output
+sheetwise --demo --auto-config --format json --verbose
 
 # Use vanilla encoding instead of compression
 sheetwise input.xlsx --vanilla
+
+# Output in JSON format
+sheetwise input.xlsx --format json
 ```
 
 ## Core Components
