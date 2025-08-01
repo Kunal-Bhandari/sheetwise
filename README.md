@@ -13,18 +13,19 @@ SheetWise is a Python package that implements the key components from Microsoft 
 - **SheetCompressor**: Efficient encoding framework with three compression modules
 - **Chain of Spreadsheet**: Multi-step reasoning approach for spreadsheet analysis
 - **Vanilla Encoding**: Traditional cell-by-cell encoding methods
-- **Token Optimization**: Significant reduction in token usage for LLM processing
+- **Token Optimization**: Significant reduction in token usage
+- **Formula Analysis**: Extract and simplify Excel formulas
+- **Multi-Sheet Support**: Process entire workbooks with cross-sheet references
+- **Visualization Tools**: Generate visual reports of compression results
 
 ## Key Features
 
 - **Intelligent Compression**: Up to 96% reduction in token usage while preserving semantic information
-- **Auto-Configuration**:  Automatically optimizes compression settings based on spreadsheet characteristics  
-- **Multi-LLM Support**:  Provider-specific formats for ChatGPT, Claude, Gemini
+- **Auto-Configuration**: Automatically optimizes compression settings based on spreadsheet characteristics  
 - **Multi-Table Support**: Handles complex spreadsheets with multiple tables and regions
 - **Structural Analysis**: Identifies and preserves important structural elements
-- **LLM-Ready Output**: Generates optimized text for direct use with ChatGPT, Claude, etc.
 - **Format-Aware**: Preserves data type and formatting information
-- **Enhanced Algorithms**:  Improved range detection and contiguous cell grouping
+- **Enhanced Algorithms**: Improved range detection and contiguous cell grouping
 - **Easy Integration**: Simple API for immediate use
 
 ## Installation
@@ -75,15 +76,9 @@ print(llm_ready_text)
 ```python
 from sheetwise import SpreadsheetLLM, SheetCompressor
 
-# Auto-configuration (NEW!)
+# Auto-configuration
 sllm = SpreadsheetLLM(enable_logging=True)
 auto_compressed = sllm.compress_with_auto_config(df)  # Automatically optimizes settings
-
-# LLM Provider-specific formats (NEW!)
-compressed = sllm.compress_spreadsheet(df)
-chatgpt_format = sllm.encode_for_llm_provider(compressed, "chatgpt")
-claude_format = sllm.encode_for_llm_provider(compressed, "claude")
-gemini_format = sllm.encode_for_llm_provider(compressed, "gemini")
 
 # Manual configuration
 compressor = SheetCompressor(
@@ -114,32 +109,82 @@ print(f"Token reduction: {stats['token_reduction_ratio']:.1f}x")
 result = sllm.process_qa_query(df, "What was the total revenue in 2023?")
 ```
 
+### Enhanced Features Usage (v2.0+)
+
+```python
+from sheetwise import (
+    SpreadsheetLLM, 
+    FormulaParser, 
+    WorkbookManager, 
+    CompressionVisualizer, 
+    SmartTableDetector
+)
+
+# Formula extraction and analysis
+formula_parser = FormulaParser()
+formulas = formula_parser.extract_formulas("your_spreadsheet.xlsx")
+formula_parser.build_dependency_graph()
+impact = formula_parser.get_formula_impact("Sheet1!A1")
+formula_text = formula_parser.encode_formulas_for_llm()
+
+# Multi-sheet support
+workbook = WorkbookManager()
+sheets = workbook.load_workbook("your_workbook.xlsx")
+cross_refs = workbook.detect_cross_sheet_references()
+sllm = SpreadsheetLLM()
+compressed = workbook.compress_workbook(sllm.compressor)
+encoded = workbook.encode_workbook_for_llm(compressed)
+
+# Visualization
+visualizer = CompressionVisualizer()
+df = sllm.load_from_file("your_spreadsheet.xlsx")
+compressed_result = sllm.compress_spreadsheet(df)
+fig = visualizer.create_data_density_heatmap(df)
+fig.savefig("heatmap.png")
+html_report = visualizer.generate_html_report(df, compressed_result)
+
+# Advanced table detection
+detector = SmartTableDetector()
+tables = detector.detect_tables(df)
+extracted_tables = detector.extract_tables_to_dataframes(df)
+```
+
 ### Command Line Interface
 
 ```bash
-# Compress a spreadsheet file
+# Basic usage
 sheetwise input.xlsx -o output.txt --stats
 
-# Auto-configure compression (NEW!)
+# Auto-configure compression
 sheetwise input.xlsx --auto-config --verbose
 
 # Run demo with sample data
 sheetwise --demo --auto-config
-
-# Run demo with vanilla encoding
-sheetwise --demo --vanilla --stats
-
-# Run demo with JSON output format
-sheetwise --demo --format json
-
-# Run demo with auto-config and JSON output
-sheetwise --demo --auto-config --format json --verbose
 
 # Use vanilla encoding instead of compression
 sheetwise input.xlsx --vanilla
 
 # Output in JSON format
 sheetwise input.xlsx --format json
+```
+
+### Enhanced CLI Features (v2.0+)
+
+```bash
+# Extract and analyze formulas
+sheetwise your_spreadsheet.xlsx --extract-formulas
+
+# Process all sheets in a workbook
+sheetwise your_workbook.xlsx --multi-sheet
+
+# Generate visualizations
+sheetwise your_spreadsheet.xlsx --visualize
+
+# Detect and extract tables
+sheetwise your_spreadsheet.xlsx --detect-tables
+
+# Generate an HTML report
+sheetwise your_spreadsheet.xlsx --format html
 ```
 
 ## Core Components
@@ -160,9 +205,12 @@ Multi-step reasoning approach:
 2. **Compression**: Applies SheetCompressor to reduce size
 3. **Query Processing**: Identifies relevant regions for specific queries
 
-### 3. Vanilla Encoder
+### 3. Enhanced Modules (v2.0+)
 
-Traditional encoding methods for comparison and compatibility.
+- **FormulaParser**: Extracts and analyzes Excel formulas
+- **WorkbookManager**: Handles multi-sheet workbooks and cross-references
+- **CompressionVisualizer**: Generates visualizations and reports
+- **SmartTableDetector**: Advanced table detection and classification
 
 ## Examples
 
@@ -185,15 +233,39 @@ print(f"Compression: {stats['compression_ratio']:.1f}x smaller")
 
 # Generate LLM-ready output
 encoded = sllm.compress_and_encode_for_llm(df)
-print("\\nReady for LLM:")
+print("\nReady for LLM:")
 print(encoded[:300] + "...")
 ```
 
-### Custom Compression Pipeline
+### Visualizing Compression
 
 ```python
-from sheetwise import SheetCompressor
+from sheetwise import SpreadsheetLLM, CompressionVisualizer
+import pandas as pd
 
+# Load your data
+df = pd.read_excel("complex_spreadsheet.xlsx")
+
+# Compress the data
+sllm = SpreadsheetLLM()
+compressed_result = sllm.compress_spreadsheet(df)
+
+# Create visualizations
+visualizer = CompressionVisualizer()
+
+# Generate heatmap of data density
+fig1 = visualizer.create_data_density_heatmap(df)
+fig1.savefig("density_heatmap.png")
+
+# Compare original vs compressed
+fig2 = visualizer.compare_original_vs_compressed(df, compressed_result)
+fig2.savefig("compression_comparison.png")
+
+# Generate HTML report with all visualizations
+html_report = visualizer.generate_html_report(df, compressed_result)
+with open("compression_report.html", "w") as f:
+    f.write(html_report)
+```
 # Compare different compression strategies
 configs = [
     {"name": "Extraction Only", "use_translation": False, "use_aggregation": False},

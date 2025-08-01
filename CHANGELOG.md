@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2025-08-02
+
+### Added
+- **Enhanced Spreadsheet Analysis**: Improved structural analysis for better data representation
+- **Expanded Visualization Tools**: More visualization options for compression analysis
+- **Optimized Token Usage**: Further token reduction for more efficient processing
+- **Multi-Sheet Analysis**: Better handling of workbooks with multiple sheets
+- **Smart Table Detection**: Advanced algorithms for detecting and classifying table regions
+- **Formula Extraction & Analysis**: Improved extraction and dependency analysis for Excel formulas
+
+### Enhanced
+- **Core Architecture**: Refactored core architecture for better maintainability and extensibility
+- **Performance Optimizations**: Reduced memory usage and improved processing speed
+- **CLI Interface**: Added new command options for enhanced functionality
+- **Documentation**: Comprehensive documentation updates with more examples
+
+### Fixed
+- **Table Detection Edge Cases**: Fixed issues with complex table structures
+- **Compression Ratio Calculation**: More accurate calculation for sparse spreadsheets
+- **Memory Leaks**: Addressed potential memory issues with large spreadsheets
+
 ## [1.1.0] - 2025-07-30
 
 ### Added

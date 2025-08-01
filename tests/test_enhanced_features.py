@@ -37,33 +37,6 @@ class TestEnhancedFeatures:
         assert isinstance(result, str)
         assert len(result) > 0
         assert "Spreadsheet Data" in result
-        
-    def test_llm_provider_formats(self):
-        """Test different LLM provider formats."""
-        sllm = SpreadsheetLLM()
-        df = create_realistic_spreadsheet()
-        compressed = sllm.compress_spreadsheet(df)
-        
-        # Test different provider formats
-        chatgpt_result = sllm.encode_for_llm_provider(compressed, "chatgpt")
-        claude_result = sllm.encode_for_llm_provider(compressed, "claude")
-        gemini_result = sllm.encode_for_llm_provider(compressed, "gemini")
-        general_result = sllm.encode_for_llm_provider(compressed, "general")
-        
-        # All should be strings with content
-        for result in [chatgpt_result, claude_result, gemini_result, general_result]:
-            assert isinstance(result, str)
-            assert len(result) > 0
-            
-        # ChatGPT format should mention mappings
-        assert "Key-Value Mappings" in chatgpt_result
-        
-        # Claude format should have structured markdown
-        assert "## Summary" in claude_result
-        
-        # Gemini format should have table format
-        assert "|" in gemini_result
-        
     def test_logging_enabled(self):
         """Test logging functionality."""
         sllm = SpreadsheetLLM(enable_logging=True)

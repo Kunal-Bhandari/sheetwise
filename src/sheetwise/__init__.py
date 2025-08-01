@@ -6,6 +6,12 @@ This package implements the key components from the SpreadsheetLLM research:
 - Chain of Spreadsheet: Multi-step reasoning approach
 - Vanilla encoding methods with cell addresses and formats
 
+Additional features include:
+- Formula extraction and analysis
+- Multi-sheet workbook support
+- Advanced table detection
+- Visualization tools
+
 Based on the research paper: "SpreadsheetLLM: Encoding Spreadsheets for Large Language Models"
 by Microsoft Research Team
 """
@@ -17,6 +23,12 @@ from .data_types import CellInfo, TableRegion
 from .encoders import VanillaEncoder
 from .utils import create_realistic_spreadsheet
 
+# New enhanced modules
+from .formula_parser import FormulaParser, FormulaDependencyAnalyzer
+from .visualizer import CompressionVisualizer
+from .workbook import WorkbookManager
+from .smart_tables import SmartTableDetector, TableType, EnhancedTableRegion
+
 try:
     from importlib.metadata import version
     __version__ = version("sheetwise")
@@ -26,11 +38,12 @@ except ImportError:
     __version__ = version("sheetwise")
 except Exception:
     # Fallback if package not installed
-    __version__ = "1.1.0"
+    __version__ = "2.1.0"
 
 __author__ = "Based on Microsoft Research SpreadsheetLLM"
 
 __all__ = [
+    # Core components
     "SpreadsheetLLM",
     "SheetCompressor",
     "VanillaEncoder",
@@ -38,4 +51,19 @@ __all__ = [
     "CellInfo",
     "TableRegion",
     "create_realistic_spreadsheet",
+    
+    # Formula handling
+    "FormulaParser",
+    "FormulaDependencyAnalyzer",
+    
+    # Visualization
+    "CompressionVisualizer",
+    
+    # Multi-sheet support
+    "WorkbookManager",
+    
+    # Enhanced table detection
+    "SmartTableDetector",
+    "TableType",
+    "EnhancedTableRegion",
 ]
