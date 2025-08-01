@@ -265,7 +265,7 @@ fig2.savefig("compression_comparison.png")
 html_report = visualizer.generate_html_report(df, compressed_result)
 with open("compression_report.html", "w") as f:
     f.write(html_report)
-```
+
 # Compare different compression strategies
 configs = [
     {"name": "Extraction Only", "use_translation": False, "use_aggregation": False},
@@ -278,6 +278,8 @@ for config in configs:
     result = compressor.compress(df)
     print(f"{config['name']}: {result['compression_ratio']:.1f}x compression")
 ```
+
+
 
 ## Performance
 
