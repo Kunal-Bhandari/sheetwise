@@ -1,5 +1,6 @@
 """Command line interface for SheetWise."""
 
+
 import argparse
 import sys
 import os
@@ -9,6 +10,12 @@ import json
 import pandas as pd
 
 from . import SpreadsheetLLM, FormulaParser, CompressionVisualizer, WorkbookManager, SmartTableDetector
+
+# Rich for colorized CLI output
+from rich.console import Console
+from rich.table import Table
+from rich.panel import Panel
+from rich.progress import track
 
 
 def main():
@@ -59,6 +66,10 @@ def main():
     
     feature_group.add_argument("--multi-sheet", action="store_true",
                              help="Process all sheets in a workbook")
+    feature_group.add_argument("--parallel", action="store_true",
+                             help="Enable parallel processing for multi-sheet workbooks")
+    feature_group.add_argument("--jobs", type=int, default=None,
+                             help="Number of parallel workers (default: number of sheets)")
     
     feature_group.add_argument("--detect-tables", action="store_true",
                              help="Detect and extract tables from the spreadsheet")
@@ -68,68 +79,88 @@ def main():
 
     args = parser.parse_args()
 
+    console = Console()
+
     # Handle demo mode
     if args.demo:
         from .utils import create_realistic_spreadsheet
 
-        print("Running SheetWise demo...")
+        console.rule("[bold blue]SheetWise Demo Mode")
+        console.print("[bold green]Running SheetWise demo...", style="green")
         df = create_realistic_spreadsheet()
         sllm = SpreadsheetLLM(enable_logging=args.verbose)
 
-        print(f"Created demo spreadsheet: {df.shape}")
+        console.print(f"[bold yellow]Created demo spreadsheet:[/] {df.shape}")
         
         # Choose encoding method based on options
         if args.vanilla:
-            print("Using vanilla encoding...")
+            console.print("[bold cyan]Using vanilla encoding...[/]")
             encoded = sllm.encode_vanilla(df)
             encoding_type = "vanilla"
         elif args.auto_config:
-            print("Using auto-configuration...")
+            console.print("[bold cyan]Using auto-configuration...[/]")
             encoded = sllm.compress_with_auto_config(df)
             encoding_type = "auto-compressed"
         else:
             encoded = sllm.compress_and_encode_for_llm(df)
             encoding_type = "compressed"
-        
+
         # Get stats if requested
         stats = {}
         if args.stats:
             stats = sllm.get_encoding_stats(df)
-            print(f"\nEncoding Statistics ({encoding_type}):")
+            table = Table(title=f"Encoding Statistics ({encoding_type})", show_header=True, header_style="bold magenta")
+            table.add_column("Metric", style="dim", width=28)
+            table.add_column("Value", style="bold")
             for key, value in stats.items():
                 if isinstance(value, float):
-                    print(f"  {key}: {value:.2f}")
+                    table.add_row(key, f"{value:.2f}")
                 else:
-                    print(f"  {key}: {value}")
-        
+                    table.add_row(key, str(value))
+            console.print(table)
+
         # Handle visualization if requested
         if args.visualize:
-            print("Generating visualization...")
+            console.print("[bold blue]Generating visualization...[/]")
             visualizer = CompressionVisualizer()
             compressed_result = sllm.compress_spreadsheet(df)
-            
-            # Create heatmap visualization
-            fig = visualizer.create_data_density_heatmap(df)
-            viz_path = "density_heatmap.png"
-            visualizer.save_visualization_to_file(fig, viz_path)
-            print(f"Saved visualization to {viz_path}")
-            
-            # Create comparison visualization
-            fig2 = visualizer.compare_original_vs_compressed(df, compressed_result)
-            viz_path2 = "compression_comparison.png"
-            visualizer.save_visualization_to_file(fig2, viz_path2)
-            print(f"Saved comparison visualization to {viz_path2}")
-        
+            # Progress bar for visualizations
+            for desc, func in track([
+                ("Data density heatmap", visualizer.create_data_density_heatmap),
+                ("Compression comparison", lambda d: visualizer.compare_original_vs_compressed(d, compressed_result))
+            ], description="[green]Creating visualizations..."):
+                if desc == "Data density heatmap":
+                    fig = func(df)
+                    viz_path = "density_heatmap.png"
+                    visualizer.save_visualization_to_file(fig, viz_path)
+                    console.print(f"[green]Saved visualization to {viz_path}")
+                else:
+                    fig2 = func(df)
+                    viz_path2 = "compression_comparison.png"
+                    visualizer.save_visualization_to_file(fig2, viz_path2)
+                    console.print(f"[green]Saved comparison visualization to {viz_path2}")
+
         # Handle table detection if requested
         if args.detect_tables:
-            print("Detecting tables...")
+            console.print("[bold blue]Detecting tables...[/]")
             detector = SmartTableDetector()
-            tables = detector.detect_tables(df)
-            
-            print(f"Detected {len(tables)} tables:")
-            for i, table in enumerate(tables):
-                print(f"  Table {i+1}: Rows {table.start_row}-{table.end_row}, Columns {table.start_col}-{table.end_col}")
-                print(f"    Type: {table.table_type.value}, Headers: {table.has_headers}")
+            tables = list(track(detector.detect_tables(df), description="[yellow]Detecting tables..."))
+            console.print(f"[bold green]Detected {len(tables)} tables:")
+            table = Table(title="Detected Tables", show_header=True, header_style="bold magenta")
+            table.add_column("#", style="dim")
+            table.add_column("Rows")
+            table.add_column("Columns")
+            table.add_column("Type")
+            table.add_column("Headers")
+            for i, t in enumerate(tables):
+                table.add_row(
+                    str(i+1),
+                    f"{t.start_row}-{t.end_row}",
+                    f"{t.start_col}-{t.end_col}",
+                    t.table_type.value,
+                    str(t.has_headers)
+                )
+            console.print(table)
         
         # Handle output format
         if args.format == "json":
@@ -166,13 +197,13 @@ def main():
 
     # Validate input file is provided when not in demo mode
     if not args.input_file:
-        print("Error: input_file is required when not using --demo", file=sys.stderr)
+        console.print(Panel("input_file is required when not using --demo", title="[red]Error", style="bold red"))
         parser.print_help()
         sys.exit(1)
 
     # Validate input file
     if not Path(args.input_file).exists():
-        print(f"Error: Input file '{args.input_file}' not found", file=sys.stderr)
+        console.print(Panel(f"Input file '{args.input_file}' not found", title="[red]Error", style="bold red"))
         sys.exit(1)
 
     try:
@@ -181,35 +212,69 @@ def main():
 
         # Load spreadsheet
         df = sllm.load_from_file(args.input_file)
-        print(f"Loaded spreadsheet: {df.shape} ({args.input_file})", file=sys.stderr)
+        console.rule(f"[bold blue]Loaded spreadsheet: {df.shape} ({args.input_file})")
 
-        # Generate encoding
+        # Parallel processing for multi-sheet workbooks
+        if args.multi_sheet:
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            wb_manager = WorkbookManager()
+            sheets = wb_manager.load_workbook(args.input_file)
+            num_workers = args.jobs or len(sheets)
+            console.print(f"[bold cyan]Processing {len(sheets)} sheets with {num_workers} workers...[/]")
+            results = []
+            with ThreadPoolExecutor(max_workers=num_workers) as executor:
+                futures = {executor.submit(wb_manager.compress_sheet, sheet, sllm.compressor): name for name, sheet in sheets.items()}
+                for future in track(as_completed(futures), total=len(futures), description="[green]Processing sheets..."):
+                    name = futures[future]
+                    try:
+                        compressed = future.result()
+                        results.append((name, compressed))
+                    except Exception as e:
+                        console.print(Panel(f"Error processing sheet {name}: {e}", title="[red]Error", style="bold red"))
+            # Show summary table
+            table = Table(title="Sheet Compression Results", show_header=True, header_style="bold magenta")
+            table.add_column("Sheet Name", style="dim")
+            table.add_column("Rows")
+            table.add_column("Columns")
+            table.add_column("Compression Ratio")
+            for name, compressed in results:
+                shape = compressed.get('original_shape', (0, 0))
+                ratio = compressed.get('compression_ratio', 0)
+                table.add_row(name, str(shape[0]), str(shape[1]), f"{ratio:.2f}")
+            console.print(table)
+            return
+
+        # Generate encoding (single sheet)
         if args.vanilla:
             encoded = sllm.encode_vanilla(df)
+            encoding_type = "vanilla"
         else:
             encoded = sllm.compress_and_encode_for_llm(df)
+            encoding_type = "compressed"
 
         # Show statistics if requested
         if args.stats:
             stats = sllm.get_encoding_stats(df)
-            print("\nEncoding Statistics:", file=sys.stderr)
+            table = Table(title=f"Encoding Statistics ({encoding_type})", show_header=True, header_style="bold magenta")
+            table.add_column("Metric", style="dim", width=28)
+            table.add_column("Value", style="bold")
             for key, value in stats.items():
                 if isinstance(value, float):
-                    print(f"  {key}: {value:.2f}", file=sys.stderr)
+                    table.add_row(key, f"{value:.2f}")
                 else:
-                    print(f"  {key}: {value}", file=sys.stderr)
-            print("", file=sys.stderr)
+                    table.add_row(key, str(value))
+            console.print(table)
 
         # Output result
         if args.output:
             with open(args.output, "w") as f:
                 f.write(encoded)
-            print(f"Encoded output written to: {args.output}", file=sys.stderr)
+            console.print(Panel(f"Encoded output written to: {args.output}", title="[green]Success", style="bold green"))
         else:
-            print(encoded)
+            console.print(encoded)
 
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        console.print(Panel(f"{e}", title="[red]Error", style="bold red"))
         sys.exit(1)
 
 
