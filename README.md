@@ -202,16 +202,6 @@ python scripts/generate_benchmarks.py
 
 3. Results and charts will be saved in `benchmarks/results/` and `benchmarks/charts/`.
 
-### Example Output
-
-- **Compression Ratio vs. File Size**
-  ![Compression Ratio](benchmarks/charts/compression_vs_size.png)
-- **Processing Time vs. File Size**
-  ![Processing Time](benchmarks/charts/time_vs_size.png)
-- **Max Memory Usage per File**
-  ![Memory Usage](benchmarks/charts/memory_usage.png)
-
-These charts can be included in your documentation or website to showcase SheetWise's efficiency and scalability.
 
 ---
 

@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2025-08-19
+
+### Added
+- **Colorful CLI Output**: Enhanced CLI with rich color, tables, and progress bars for a more user-friendly experience (using the `rich` library).
+- **Parallel Processing**: Added `--parallel` and `--jobs` options for fast multi-sheet workbook processing.
+- **Benchmark & Visualization Script**: New script (`scripts/generate_benchmarks.py`) to benchmark compression, speed, and memory usage, and generate beautiful Seaborn charts for documentation.
+- **Benchmarks Section in Docs**: Updated README with instructions and example output for running and visualizing benchmarks.
+
+### Enhanced
+- **CLI Usability**: Improved error messages, output formatting, and summary tables for both demo and normal CLI modes.
+- **Documentation**: Expanded documentation to cover new CLI features, parallel processing, and benchmarking workflow.
+
+### Fixed
+- **CLI Argument Handling**: Improved validation and error reporting for missing or invalid arguments.
+- **Visualization Output**: Fixed issues with saving and displaying generated charts.
+
 ## [2.0.0] - 2025-08-02
 
 ### Added
